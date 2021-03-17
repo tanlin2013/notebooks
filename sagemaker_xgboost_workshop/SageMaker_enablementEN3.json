@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Practical Data Science with SageMaker Bootcamp v1.0
+Parameters:
+  NotebookInstanceType:
+    Description: Instance type for Notebook instance.
+    Type: String
+    Default: ml.t2.medium
+
+  S3PathPrefix:
+    Type: String
+    Description: "The path prefix where lab resources are stored"
+    Default: "courses/ILT-CC-200-MLSMES-10-EN/lab"
+    #Default: "courses/ILT-CC-200-MLSMES-10-EN/lab"
+
+  ModelPrefix:
+    Description: Prefix to prepend to resources created for the model.
+    Type: String
+    Default: PracticalDataScience-Bootcamp
+
+Resources:
+  CFNNotebookInstanceLifeCycleConfig:
+    Type: "AWS::SageMaker::NotebookInstanceLifecycleConfig"
+    Properties:
+      NotebookInstanceLifecycleConfigName: !Join ["-", ["upload-notebook", "Greenfield"]]
+      OnStart:
+        - Content:
+            Fn::Base64:
+              !Sub |
+              #!/bin/bash
+      OnCreate:
+        - Content:
+            Fn::Base64:
+              !Sub |
+              #!/bin/bash
+
+              curl -o /home/ec2-user/SageMaker/xgboost_customer_churn_bootcamp_student.ipynb https://cathypersonalwebsite.s3.us-east-2.amazonaws.com/xgboost_customer_churn_bootcamp_student_EN_C.ipynb
+              curl -o /home/ec2-user/SageMaker/xgboost_customer_churn_bootcamp_student_solution.ipynb https://cathypersonalwebsite.s3.us-east-2.amazonaws.com/xgboost_customer_churn_bootcamp_student_EN_C.ipynb
+              curl -o /home/ec2-user/SageMaker/churn.txt https://cathypersonalwebsite.s3.us-east-2.amazonaws.com/churn.txt
+              curl -o /home/ec2-user/SageMaker/template-cloudwatch.yaml https://cathypersonalwebsite.s3.us-east-2.amazonaws.com/template-cloudwatch.yaml
+              curl -o /home/ec2-user/SageMaker/UsingDeepARtoForecastElectricityTimeSeriesData.ipynb https://cathypersonalwebsite.s3.us-east-2.amazonaws.com/UsingDeepARtoForecastElectricityTimeSeriesData.ipynb
+              curl -o /home/ec2-user/SageMaker/household_power_consumption.txt https://cathypersonalwebsite.s3.us-east-2.amazonaws.com/cathydata1.txt
+              curl -o /home/ec2-user/SageMaker/labALL.zip https://cathypersonalwebsite.s3.us-east-2.amazonaws.com/cathydata2.zip
+              chown ec2-user:ec2-user /home/ec2-user/SageMaker/xgboost_customer_churn_bootcamp_student.ipynb
+              chown ec2-user:ec2-user /home/ec2-user/SageMaker/xgboost_customer_churn_bootcamp_student_solution.ipynb
+              chown ec2-user:ec2-user /home/ec2-user/SageMaker/churn.txt
+              chown ec2-user:ec2-user /home/ec2-user/SageMaker/template-cloudwatch.yaml
+              chown ec2-user:ec2-user /home/ec2-user/SageMaker/UsingDeepARtoForecastElectricityTimeSeriesData.ipynb
+              chown ec2-user:ec2-user /home/ec2-user/SageMaker/household_power_consumption.txt
+              chown ec2-user:ec2-user /home/ec2-user/SageMaker/household_power_consumption.zip
+
+  CFNNotebookInstance:
+    Type: "AWS::SageMaker::NotebookInstance"
+    DependsOn:
+      - CFNNotebookInstanceLifeCycleConfig
+      - SageMakerExecutionRole
+    Properties:
+      NotebookInstanceName: !Join ["-", ["datasciencebootcamp", !Ref "AWS::StackName"]]
+      LifecycleConfigName: !GetAtt CFNNotebookInstanceLifeCycleConfig.NotebookInstanceLifecycleConfigName
+      InstanceType: !Ref NotebookInstanceType
+      RoleArn: !GetAtt SageMakerExecutionRole.Arn
+
+  SageMakerExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          -
+            Effect: "Allow"
+            Principal:
+              Service:
+                - "sagemaker.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Path: /
+      Policies:
+        - PolicyName: sagemaker-execution-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              Effect: "Allow"
+              Action:
+                - "iam:List*"
+                - "iam:Get*"
+                - "sagemaker:*"
+                - "s3:*"
+                - "logs:*"
+                - "glue:*"
+                - "cloudwatch:*"
+                - "iam:PassRole"
+                - "application-autoscaling:*"
+                - "cloudwatch:DescribeAlarms"
+                - "cloudwatch:PutMetricAlarm"
+                - "iam:CreateServiceLinkedRole"
+              Resource: "*"
+Outputs:
+  NotebookInstance:
+    Description: Details about the SageMaker NotebookInstance
+    Value: !Join ["",
+      ["https://",
+        !GetAtt CFNNotebookInstance.NotebookInstanceName,
+        ".notebook.",
+        !Ref "AWS::Region",
+        ".sagemaker.aws"]]
